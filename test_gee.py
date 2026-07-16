@@ -1,5 +1,4 @@
 import ee
-import ee
 
 ee.Initialize()
 
