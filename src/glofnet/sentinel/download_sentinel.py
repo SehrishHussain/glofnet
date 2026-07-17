@@ -1,6 +1,8 @@
 import ee
 import geemap
 import webbrowser
+import requests
+from pathlib import Path
 
 from glofnet.common.find_glacier import load_glacier
 
@@ -38,8 +40,44 @@ def main():
     count = collection.size().getInfo()
 
     first_image = collection.first()
+
+    glacier_id = glacier.iloc[0]["rgi_id"]
+
+    image_date = ee.Date(first_image.get("system:time_start")).format("YYYY-MM-dd").getInfo()
+
+    filename = f"{glacier_id}_{image_date}.tif"
+
+    print(filename)
+    output_dir = Path("data/raw/sentinel")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_file = output_dir / filename
+
+    #print(geemap.image_date)
     clipped_image = first_image.clip(ee_polygon)
-    rgb = clipped_image.select(["B4", "B3", "B2"])
+    rgb = clipped_image.select([ "B2",   # Blue
+    "B3",   # Green
+    "B4",   # Red
+    "B8",   # NIR
+    "B11",  # SWIR-1
+    "B12",  # SWIR-2
+    ])
+    download_url = rgb.getDownloadURL(
+    {
+        "scale": 10,
+        "region": ee_polygon,
+        "format": "GEO_TIFF",
+    }
+)
+    print(glacier.columns)
+   # print(download_url)
+    response = requests.get(download_url)
+    with open(output_file, "wb") as f:
+        f.write(response.content)
+
+    print(f"GeoTIFF saved to: {output_file}")
+    
+    print("GeoTIFF downloaded successfully.")
 
     Map = geemap.Map()
 
