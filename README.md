@@ -1,15 +1,12 @@
-# GLOFNet Reproduction
+# GLOFNet Data Pipeline
 
-This project reproduces the data engineering pipeline described in the paper:
+An extensible Python data pipeline for acquiring, preprocessing, and harmonizing multimodal glacier datasets for AI and climate research.
 
-**GLOFNet: A Multimodal Dataset for GLOF Monitoring and Prediction**
+The project is inspired by the methodology presented in:
 
-## Current Progress
+> GLOFNet: A Multimodal Dataset for GLOF Monitoring and Prediction
 
-- ✅ Python environment configured
-- ✅ Google Earth Engine authentication
-- ✅ Randolph Glacier Inventory (RGI) integration
-- ✅ Glacier lookup module implemented
+This repository builds a modular, reusable pipeline that can be extended to additional glaciers, datasets, and machine learning workflows.
 
 ## Planned Pipeline
 

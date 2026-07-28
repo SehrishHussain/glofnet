@@ -65,6 +65,21 @@ def main():
 
     print(type(first))
     print(first)
+    print(type(itslive))
+    print(dir(itslive))
+
+    print("\nSearching...")
+
+    results = itslive.velocity_pairs.find(
+        geojson=geometry
+    )
+
+    print(type(results))
+    print(len(results))
+
+    if results:
+        print(type(results[0]))
+        print(results[0])
 
 
 if __name__ == "__main__":
