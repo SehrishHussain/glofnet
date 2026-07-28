@@ -1,8 +1,11 @@
 """
 Explore the ITS_LIVE Python API.
 
-This script searches for velocity granules intersecting the configured glacier
-and prints information about the returned objects.
+This script searches for glacier velocity granules using the official
+ITS_LIVE Python package and inspects the first few search results.
+
+The purpose is to understand the structure of the objects returned by the
+API before implementing the production search and download pipeline.
 """
 
 from datetime import date
@@ -19,67 +22,66 @@ from glofnet.itslive.config import (
 
 def glacier_to_geojson(glacier):
     """
-    Convert a single glacier polygon into a GeoJSON geometry.
+    Convert a glacier polygon to a GeoJSON geometry.
 
     Parameters
     ----------
     glacier : GeoDataFrame
+        GeoDataFrame containing a single glacier.
 
     Returns
     -------
     dict
-        GeoJSON geometry dictionary.
+        GeoJSON geometry.
     """
     return glacier.geometry.iloc[0].__geo_interface__
 
 
 def main():
+    """Search for a few ITS_LIVE velocity granules and inspect them."""
 
     glacier = load_glacier(GLACIER_ID)
-
     geometry = glacier_to_geojson(glacier)
 
-    print("Searching ITS_LIVE granules...\n")
+    print("=" * 70)
+    print("ITS_LIVE API EXPLORATION")
+    print("=" * 70)
 
-    results = itslive.velocity_pairs.find(
+    print(f"ITS_LIVE module : {itslive}")
+    print()
+
+    print("Searching for matching velocity granules...\n")
+
+    stream = itslive.velocity_pairs.find_streaming(
         geojson=geometry,
         start=date.fromisoformat(START_DATE),
         end=date.fromisoformat(END_DATE),
     )
 
-    print("=" * 70)
-    print("SEARCH RESULTS")
-    print("=" * 70)
+    found = 0
 
-    print(f"Returned object : {type(results)}")
-    print(f"Number found    : {len(results)}")
+    for i, granule in enumerate(stream, start=1):
 
-    if len(results) == 0:
-        print("\nNo granules found.")
-        return
+        print("=" * 70)
+        print(f"GRANULE {i}")
+        print("=" * 70)
 
-    first = results[0]
+        print(f"Object type : {type(granule)}")
+        print()
+        print(granule)
+        print()
 
-    print("\nFIRST RESULT")
-    print("=" * 70)
+        found += 1
 
-    print(type(first))
-    print(first)
-    print(type(itslive))
-    print(dir(itslive))
+        # Stop after inspecting a few results.
+        if found == 5:
+            break
 
-    print("\nSearching...")
+    if found == 0:
+        print("No matching granules were found.")
 
-    results = itslive.velocity_pairs.find(
-        geojson=geometry
-    )
-
-    print(type(results))
-    print(len(results))
-
-    if results:
-        print(type(results[0]))
-        print(results[0])
+    print()
+    print(f"Displayed {found} granule(s).")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# GLOFNet Data Pipeline
+# CryoFusion Data Pipeline
 
 An extensible Python data pipeline for acquiring, preprocessing, and harmonizing multimodal glacier datasets for AI and climate research.
 
