@@ -3,15 +3,25 @@ from pathlib import Path
 import geopandas as gpd
 
 # ----------------------------------------------------
-# Configuration
+# Project Paths
 # ----------------------------------------------------
 
-SHAPEFILE = Path(
-    "data/reference/RGI/RGI2000-v7.0-G-14_south_asia_west/RGI2000-v7.0-G-14_south_asia_west.shp"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+SHAPEFILE = (
+    PROJECT_ROOT
+    / "data"
+    / "reference"
+    / "RGI"
+    / "RGI2000-v7.0-G-14_south_asia_west"
+    / "RGI2000-v7.0-G-14_south_asia_west.shp"
 )
 
-GLACIER_ID = "RGI2000-v7.0-G-14-08488"
+# ----------------------------------------------------
+# Glacier Configuration
+# ----------------------------------------------------
 
+GLACIER_ID = "RGI2000-v7.0-G-14-08488"
 # ----------------------------------------------------
 # Load glacier inventory
 # ----------------------------------------------------

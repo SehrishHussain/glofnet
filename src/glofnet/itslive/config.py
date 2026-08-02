@@ -23,3 +23,20 @@ END_DATE = "2024-12-31"
 # =============================================================================
 
 OUTPUT_DIRECTORY = "data/raw/itslive"
+
+COLLECTION_NAME = "itslive-granules"
+
+START_DATE = "2021-01-01"
+END_DATE = "2024-12-31"
+
+MAX_ITEMS = 10
+
+STAC_URL = "https://stac.itslive.cloud"
+
+COLLECTION_NAME = "itslive-granules"
+
+START_DATE = "2021-01-01"
+
+END_DATE = "2024-12-31"
+
+MAX_ITEMS = 1

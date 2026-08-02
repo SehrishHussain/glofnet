@@ -1,87 +1,159 @@
 """
-Explore the ITS_LIVE Python API.
+Explore the ITS_LIVE granule STAC collection.
 
-This script searches for glacier velocity granules using the official
-ITS_LIVE Python package and inspects the first few search results.
+This script is for exploratory purposes only. It helps us understand the
+structure of ITS_LIVE velocity granules before implementing the production
+search and download pipeline.
 
-The purpose is to understand the structure of the objects returned by the
-API before implementing the production search and download pipeline.
+Workflow
+--------
+1. Load the glacier from the RGI inventory.
+2. Compute its bounding box.
+3. Connect to the ITS_LIVE STAC catalog.
+4. Search the ITS_LIVE granule collection.
+5. Inspect one STAC Item.
 """
 
-from datetime import date
+from pystac_client import Client
 
-import itslive
-
+from glofnet.common.console import (
+    print_header,
+    print_section,
+    print_key_value,
+    print_success,
+    print_warning,
+)
 from glofnet.common.find_glacier import load_glacier
 from glofnet.itslive.config import (
     GLACIER_ID,
+    STAC_URL,
+    COLLECTION_NAME,
     START_DATE,
     END_DATE,
+    MAX_ITEMS,
 )
 
 
-def glacier_to_geojson(glacier):
-    """
-    Convert a glacier polygon to a GeoJSON geometry.
+def connect_to_catalog():
+    """Connect to the ITS_LIVE STAC catalog."""
 
-    Parameters
-    ----------
-    glacier : GeoDataFrame
-        GeoDataFrame containing a single glacier.
+    print_section("Connecting to ITS_LIVE STAC")
+
+    catalog = Client.open(STAC_URL)
+
+    print_success("Connected successfully")
+
+    return catalog
+
+
+def compute_bbox(glacier):
+    """
+    Compute the glacier bounding box.
 
     Returns
     -------
-    dict
-        GeoJSON geometry.
+    list[float]
+        Bounding box in STAC format:
+        [west, south, east, north]
     """
-    return glacier.geometry.iloc[0].__geo_interface__
+
+    west, south, east, north = glacier.total_bounds
+
+    print_section("Bounding Box")
+
+    print_key_value("West", west)
+    print_key_value("South", south)
+    print_key_value("East", east)
+    print_key_value("North", north)
+
+    return [west, south, east, north]
+
+
+def search_granules(catalog, bbox):
+    """
+    Search the ITS_LIVE granule collection.
+    """
+
+    print_section("Searching ITS_LIVE Granules")
+
+    search = catalog.search(
+        collections=[COLLECTION_NAME],
+        bbox=bbox,
+        datetime=f"{START_DATE}/{END_DATE}",
+        max_items=MAX_ITEMS,
+    )
+
+    items = list(search.items())
+
+    print_key_value("Matching Granules", len(items))
+
+    return items
+
+
+def print_summary(item):
+    """Print a summary of the STAC Item."""
+
+    print_section("Granule Summary")
+
+    print_key_value("ID", item.id)
+    print_key_value("Collection", item.collection_id)
+    print_key_value("Geometry", item.geometry["type"])
+    print_key_value("BBox", item.bbox)
+
+
+def print_assets(item):
+    """Print all assets."""
+
+    print_section("Assets")
+
+    for name, asset in item.assets.items():
+
+        print_key_value("Asset", name)
+        print_key_value("Title", asset.title)
+        print_key_value("Media Type", asset.media_type)
+        print_key_value("Href", asset.href)
+
+        print()
+
+
+def print_properties(item):
+    """Print all STAC properties."""
+
+    print_section("Properties")
+
+    for key, value in sorted(item.properties.items()):
+        print_key_value(key, value)
 
 
 def main():
-    """Search for a few ITS_LIVE velocity granules and inspect them."""
+
+    print_header("ITS_LIVE Granule Exploration")
 
     glacier = load_glacier(GLACIER_ID)
-    geometry = glacier_to_geojson(glacier)
 
-    print("=" * 70)
-    print("ITS_LIVE API EXPLORATION")
-    print("=" * 70)
+    print_success("Glacier loaded")
 
-    print(f"ITS_LIVE module : {itslive}")
-    print()
+    print_key_value("Glacier ID", GLACIER_ID)
 
-    print("Searching for matching velocity granules...\n")
+    bbox = compute_bbox(glacier)
 
-    stream = itslive.velocity_pairs.find_streaming(
-        geojson=geometry,
-        start=date.fromisoformat(START_DATE),
-        end=date.fromisoformat(END_DATE),
-    )
+    catalog = connect_to_catalog()
 
-    found = 0
+    items = search_granules(catalog, bbox)
 
-    for i, granule in enumerate(stream, start=1):
+    if not items:
 
-        print("=" * 70)
-        print(f"GRANULE {i}")
-        print("=" * 70)
+        print_warning("No matching granules found.")
 
-        print(f"Object type : {type(granule)}")
-        print()
-        print(granule)
-        print()
+        return
 
-        found += 1
+    item = items[0]
 
-        # Stop after inspecting a few results.
-        if found == 5:
-            break
+    print_summary(item)
 
-    if found == 0:
-        print("No matching granules were found.")
+    print_assets(item)
 
-    print()
-    print(f"Displayed {found} granule(s).")
+    print_properties(item)
 
 
 if __name__ == "__main__":
