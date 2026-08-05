@@ -1,12 +1,18 @@
+
+
 from pathlib import Path
 
 import xarray as xr
 
-from glofnet.itslive.config import OUTPUT_DIRECTORY
+from glofnet.common.paths import (
+    RAW_DIRECTORY,
+    PROCESSED_DIRECTORY,
+)
 from glofnet.itslive.config import ITSLIVE_VARIABLES
 
-RAW_DIRECTORY = Path(OUTPUT_DIRECTORY)
-PROCESSED_DIRECTORY = Path("data/processed/itslive")
+
+RAW_DIRECTORY = RAW_DIRECTORY / "itslive"
+PROCESSED_DIRECTORY = PROCESSED_DIRECTORY / "itslive"
 
 
 def preprocess_granule(path: Path) -> Path:

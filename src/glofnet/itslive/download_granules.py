@@ -9,9 +9,10 @@ from pathlib import Path
 
 import requests
 
-from glofnet.itslive.config import OUTPUT_DIRECTORY
+from glofnet.common.paths import RAW_DIRECTORY
 from glofnet.itslive.models import GranuleInfo
 from glofnet.itslive.search_granules import search_granules
+
 
 
 def download_granule(granule: GranuleInfo) -> Path:
@@ -29,7 +30,7 @@ def download_granule(granule: GranuleInfo) -> Path:
         Local path to the downloaded NetCDF file.
     """
 
-    output_dir = Path(OUTPUT_DIRECTORY)
+    output_dir = RAW_DIRECTORY / "itslive"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     destination = output_dir / granule.filename
@@ -43,19 +44,33 @@ def download_granule(granule: GranuleInfo) -> Path:
     response = requests.get(granule.url, stream=True)
     response.raise_for_status()
 
-    response = requests.get(granule.url, stream=True)
-    response.raise_for_status()
+   
     
     print("Status:", response.status_code)
     print("Content-Type:", response.headers.get("Content-Type"))
     print("Content-Length:", response.headers.get("Content-Length"))
 
     with destination.open("wb") as file:
-        for chunk in response.iter_content(chunk_size=8 * 1024 * 1024):
-            if chunk:
-                file.write(chunk)
+        bytes_written = 0
 
-    print(f"✓ Saved: {destination}")
+        for i, chunk in enumerate(
+            response.iter_content(chunk_size=1024 * 1024),
+            start=1,
+        ):
+            if not chunk:
+                continue
+
+            file.write(chunk)
+            bytes_written += len(chunk)
+
+            print(
+                f"Chunk {i}: "
+                f"{len(chunk):,} bytes "
+                f"(total {bytes_written:,})"
+            )
+
+        print(f"✓ Saved: {destination}")
+        print(f"Final size: {destination.stat().st_size:,} bytes")
 
     return destination
 

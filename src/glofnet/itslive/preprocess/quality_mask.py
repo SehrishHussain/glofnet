@@ -13,9 +13,12 @@ from pathlib import Path
 
 import xarray as xr
 
+from glofnet.common.paths import QUALITY_DIRECTORY, CLIPPED_DIRECTORY
 
-CLIPPED_DIRECTORY = Path("data/clipped/itslive")
-QUALITY_DIRECTORY = Path("data/quality/itslive")
+QUALITY_DIRECTORY = QUALITY_DIRECTORY / "itslive"
+
+CLIPPED_DIRECTORY = CLIPPED_DIRECTORY / "itslive"
+
 
 
 def quality_mask_granule(path: Path) -> Path:

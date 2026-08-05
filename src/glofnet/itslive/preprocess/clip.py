@@ -14,6 +14,11 @@ Workflow
 
 from pathlib import Path
 
+from glofnet.common.paths import (
+    ITSLIVE_PROCESSED_DIRECTORY,
+    ITSLIVE_CLIPPED_DIRECTORY,
+)
+
 import rioxarray  # noqa: F401
 import xarray as xr
 
@@ -26,8 +31,7 @@ from glofnet.itslive.config import GLACIER_ID
 
 
 
-REDUCED_DIRECTORY = Path("data/processed/itslive")
-CLIPPED_DIRECTORY = Path("data/clipped/itslive")
+
 
 
 
@@ -87,12 +91,12 @@ def clip_granule(path: Path) -> Path:
     # Save.
     # ------------------------------------------------------------------
 
-    CLIPPED_DIRECTORY.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    ITSLIVE_CLIPPED_DIRECTORY.mkdir(
+    parents=True,
+    exist_ok=True,
+)
 
-    output_path = CLIPPED_DIRECTORY / path.name
+    output_path = ITSLIVE_CLIPPED_DIRECTORY / path.name
 
     clipped.to_netcdf(output_path)
 
@@ -111,10 +115,12 @@ def clip_all() -> list[Path]:
     list[Path]
         Paths to the clipped datasets.
     """
-
+    print("Processed directory:", ITSLIVE_PROCESSED_DIRECTORY)
+    print("Exists:", ITSLIVE_PROCESSED_DIRECTORY.exists())
+    print("Files:", list(ITSLIVE_PROCESSED_DIRECTORY.glob("*.nc")))
     datasets = sorted(
-        REDUCED_DIRECTORY.glob("*.nc")
-    )
+        ITSLIVE_PROCESSED_DIRECTORY.glob("*.nc")
+)
 
     if not datasets:
         raise FileNotFoundError(
