@@ -115,9 +115,6 @@ def clip_all() -> list[Path]:
     list[Path]
         Paths to the clipped datasets.
     """
-    print("Processed directory:", ITSLIVE_PROCESSED_DIRECTORY)
-    print("Exists:", ITSLIVE_PROCESSED_DIRECTORY.exists())
-    print("Files:", list(ITSLIVE_PROCESSED_DIRECTORY.glob("*.nc")))
     datasets = sorted(
         ITSLIVE_PROCESSED_DIRECTORY.glob("*.nc")
 )
