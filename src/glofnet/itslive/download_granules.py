@@ -1,5 +1,8 @@
 """
 Download ITS_LIVE velocity granules.
+
+This module downloads NetCDF velocity granules discovered by
+search_granules.py and stores them in the local raw data directory.
 """
 
 from pathlib import Path
@@ -7,10 +10,24 @@ from pathlib import Path
 import requests
 
 from glofnet.itslive.config import OUTPUT_DIRECTORY
+from glofnet.itslive.models import GranuleInfo
 from glofnet.itslive.search_granules import search_granules
 
 
-def download_granule(granule):
+def download_granule(granule: GranuleInfo) -> Path:
+    """
+    Download a single ITS_LIVE velocity granule.
+
+    Parameters
+    ----------
+    granule : GranuleInfo
+        Granule metadata returned by search_granules().
+
+    Returns
+    -------
+    Path
+        Local path to the downloaded NetCDF file.
+    """
 
     output_dir = Path(OUTPUT_DIRECTORY)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -18,29 +35,63 @@ def download_granule(granule):
     destination = output_dir / granule.filename
 
     if destination.exists():
-        print(f"Already exists: {destination.name}")
+        print(f"✓ Already downloaded: {destination.name}")
         return destination
 
-    print(f"Downloading {granule.filename}")
+    print(f"Downloading: {granule.filename}")
 
     response = requests.get(granule.url, stream=True)
     response.raise_for_status()
 
-    with open(destination, "wb") as file:
-        for chunk in response.iter_content(chunk_size=1024 * 1024):
+    response = requests.get(granule.url, stream=True)
+    response.raise_for_status()
+    
+    print("Status:", response.status_code)
+    print("Content-Type:", response.headers.get("Content-Type"))
+    print("Content-Length:", response.headers.get("Content-Length"))
+
+    with destination.open("wb") as file:
+        for chunk in response.iter_content(chunk_size=8 * 1024 * 1024):
             if chunk:
                 file.write(chunk)
 
-    print("Finished.")
+    print(f"✓ Saved: {destination}")
 
     return destination
 
 
+def download_granules() -> list[Path]:
+    """
+    Download all matching ITS_LIVE granules.
+
+    Returns
+    -------
+    list[Path]
+        Paths to the downloaded NetCDF files.
+    """
+
+    granules = search_granules()
+
+    if not granules:
+        raise RuntimeError("No ITS_LIVE granules found.")
+
+    downloaded_files: list[Path] = []
+
+    for granule in granules:
+        downloaded_files.append(download_granule(granule))
+
+    return downloaded_files
+
+
 def main():
 
-    granule = search_granules()[0]
+    downloaded = download_granules()
 
-    download_granule(granule)
+    print("\nDownloaded files:\n")
+    
+
+    for file in downloaded:
+        print(file)
 
 
 if __name__ == "__main__":
