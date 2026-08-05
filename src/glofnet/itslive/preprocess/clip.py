@@ -31,11 +31,6 @@ CLIPPED_DIRECTORY = Path("data/clipped/itslive")
 
 
 
-print("Working directory:", Path.cwd())
-print("Reduced directory:", REDUCED_DIRECTORY.resolve())
-print("Exists:", REDUCED_DIRECTORY.exists())
-
-
 def clip_granule(path: Path) -> Path:
     
     """
@@ -55,8 +50,8 @@ def clip_granule(path: Path) -> Path:
     ds = xr.open_dataset(path)
     #ds = xr.open_dataset(path)
 
-    print("Opening:", path)
-    print("Variables:", list(ds.data_vars))
+    
+    #print("Variables:", list(ds.data_vars))
 
     # ------------------------------------------------------------------
     # Read CRS from the dataset mapping variable.
@@ -66,7 +61,7 @@ def clip_granule(path: Path) -> Path:
 
     ds = ds.rio.write_crs(crs)
 
-    print("Dataset CRS:", ds.rio.crs)
+    #print("Dataset CRS:", ds.rio.crs)
     
 
     # ------------------------------------------------------------------
@@ -76,7 +71,7 @@ def clip_granule(path: Path) -> Path:
     glacier = load_glacier(GLACIER_ID)
 
     glacier = reproject_geometry(glacier, crs)
-    print("Glacier CRS:", glacier.crs)
+    # print("Glacier CRS:", glacier.crs)
 
     # ------------------------------------------------------------------
     # Clip.

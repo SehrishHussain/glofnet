@@ -26,16 +26,6 @@ def preprocess_granule(path: Path) -> Path:
 
     ds = xr.open_dataset(path)
 
-    print("Variables in raw dataset:")
-    print(list(ds.data_vars))
-
-    print("\nVariables requested:")
-    print(ITSLIVE_VARIABLES)
-
-    processed = ds[ITSLIVE_VARIABLES]
-
-    print("\nVariables after selection:")
-    print(list(processed.data_vars))
 
     # Verify that all required variables exist.
     missing = [
