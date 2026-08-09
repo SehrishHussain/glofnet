@@ -1,10 +1,10 @@
 """
-Apply quality masking to clipped ITS_LIVE velocity datasets.
+Apply quality masking to clipped ITS_LIVE datasets.
 
 Workflow
 --------
 1. Open a clipped ITS_LIVE dataset.
-2. Mask interpolated velocity pixels.
+2. Remove interpolated velocity pixels.
 3. Preserve metadata.
 4. Save the quality-controlled dataset.
 """
@@ -13,12 +13,18 @@ from pathlib import Path
 
 import xarray as xr
 
-from glofnet.common.paths import QUALITY_DIRECTORY, CLIPPED_DIRECTORY
+from glofnet.common.paths import (
+    ITSLIVE_CLIPPED_DIRECTORY,
+    ITSLIVE_QUALITY_DIRECTORY,
+)
 
-QUALITY_DIRECTORY = QUALITY_DIRECTORY / "itslive"
 
-CLIPPED_DIRECTORY = CLIPPED_DIRECTORY / "itslive"
-
+VELOCITY_VARIABLES = [
+    "vx",
+    "vy",
+    "v",
+    "v_error",
+]
 
 
 def quality_mask_granule(path: Path) -> Path:
@@ -28,7 +34,7 @@ def quality_mask_granule(path: Path) -> Path:
     Parameters
     ----------
     path : Path
-        Path to a clipped NetCDF dataset.
+        Path to the clipped NetCDF dataset.
 
     Returns
     -------
@@ -36,44 +42,45 @@ def quality_mask_granule(path: Path) -> Path:
         Path to the quality-controlled dataset.
     """
 
-    ds = xr.open_dataset(path)
+    with xr.open_dataset(path) as ds:
 
-    # ------------------------------------------------------------
-    # Mask interpolated pixels.
-    #
-    # interp_mask == 1  -> interpolated
-    # interp_mask == 0  -> measured
-    # ------------------------------------------------------------
+        # --------------------------------------------------------------
+        # Keep only measured pixels.
+        #
+        # interp_mask == 0  -> measured
+        # interp_mask == 1  -> interpolated
+        # --------------------------------------------------------------
 
-    valid_pixels = ds["interp_mask"] == 0
+        valid_pixels = ds["interp_mask"] == 0
 
-    masked = ds.copy()
+        masked = ds.copy()
 
-    for variable in ["vx", "vy", "v", "v_error"]:
-        masked[variable] = ds[variable].where(valid_pixels)
+        for variable in VELOCITY_VARIABLES:
+            masked[variable] = ds[variable].where(valid_pixels)
 
-    # ------------------------------------------------------------
-    # Save.
-    # ------------------------------------------------------------
+        # --------------------------------------------------------------
+        # Save.
+        # --------------------------------------------------------------
 
-    QUALITY_DIRECTORY.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+        ITSLIVE_QUALITY_DIRECTORY.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
-    output_path = QUALITY_DIRECTORY / path.name
+        output_path = (
+            ITSLIVE_QUALITY_DIRECTORY / path.name
+        )
 
-    masked.to_netcdf(output_path)
+        masked.to_netcdf(output_path)
 
-    masked.close()
-    ds.close()
+        masked.close()
 
     return output_path
 
 
 def quality_mask_all() -> list[Path]:
     """
-    Apply quality masking to every clipped dataset.
+    Apply quality masking to every clipped ITS_LIVE dataset.
 
     Returns
     -------
@@ -81,7 +88,9 @@ def quality_mask_all() -> list[Path]:
         Paths to the quality-controlled datasets.
     """
 
-    datasets = sorted(CLIPPED_DIRECTORY.glob("*.nc"))
+    datasets = sorted(
+        ITSLIVE_CLIPPED_DIRECTORY.glob("*.nc")
+    )
 
     if not datasets:
         raise FileNotFoundError(

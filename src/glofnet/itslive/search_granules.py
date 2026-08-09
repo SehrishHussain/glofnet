@@ -1,20 +1,20 @@
 """
-Search the ITS_LIVE STAC granule collection for velocity granules
-intersecting a glacier.
+Debug the ITS_LIVE STAC search.
+
+This script performs several independent searches to determine why
+the filtered search is returning zero granules.
 """
 
 from pystac_client import Client
 
 from glofnet.common.find_glacier import load_glacier
 from glofnet.itslive.config import (
-    GLACIER_ID,
-    STAC_URL,
     COLLECTION_NAME,
-    START_DATE,
     END_DATE,
-    MAX_ITEMS,
+    GLACIER_ID,
+    START_DATE,
+    STAC_URL,
 )
-from glofnet.itslive.models import GranuleInfo
 
 
 def connect_to_catalog():
@@ -23,95 +23,246 @@ def connect_to_catalog():
 
 
 def compute_bbox(glacier):
-    """
-    Compute the glacier bounding box.
-
-    Returns
-    -------
-    list[float]
-        [west, south, east, north]
-    """
     west, south, east, north = glacier.total_bounds
     return [west, south, east, north]
 
 
-def search_granules() -> list[GranuleInfo]:
-    """
-    Search ITS_LIVE granules for the configured glacier.
+def print_search_results(title, search):
 
-    Returns
-    -------
-    list[GranuleInfo]
-    """
+    print()
+    print("=" * 80)
+    print(title)
+    print("=" * 80)
+
+    try:
+        url = search.url_with_parameters()
+
+        print("Request:")
+
+        if len(url) > 200:
+            print(url[:200] + " ...")
+            print(f"(URL length: {len(url):,} characters)")
+        else:
+            print(url)
+
+    except Exception:
+        print("Request unavailable")
+
+    items = list(search.items())
+
+    print(f"\nReturned {len(items)} item(s)\n")
+
+    for item in items[:5]:
+        print(item.id)
+        print("BBox     :", item.bbox)
+        print("Datetime :", item.properties.get("datetime"))
+        print()
+
+    return items
+
+
+def search_granules():
 
     glacier = load_glacier(GLACIER_ID)
 
     bbox = compute_bbox(glacier)
 
+    centroid = (
+        float(glacier.cenlon.iloc[0]),
+        float(glacier.cenlat.iloc[0]),
+    )
+
     catalog = connect_to_catalog()
+
+    print("=" * 80)
+    print("GLACIER")
+    print("=" * 80)
+
+    print(glacier[["rgi_id", "cenlon", "cenlat"]])
+
+    print("\nBounding box")
+    print(bbox)
+
+    print("\nCentroid")
+    print(centroid)
+
+    print("\n" + "=" * 80)
+    print("CATALOG")
+    print("=" * 80)
+
+    print("STAC URL :", STAC_URL)
+    print("Collection:", COLLECTION_NAME)
+
+    print("\nCollections:")
+
+    for collection in catalog.get_collections():
+        print("-", collection.id)
+
+    #
+    # ------------------------------------------------------------
+    # TEST 0
+    # Collection metadata
+    # ------------------------------------------------------------
+    #
+
+    print("\n" + "=" * 80)
+    print("TEST 0 - COLLECTION METADATA")
+    print("=" * 80)
+
+    collection = catalog.get_collection(COLLECTION_NAME)
+
+    print("Spatial extent:")
+    print(collection.extent.spatial.bboxes)
+
+    print()
+
+    print("Temporal extent:")
+    print(collection.extent.temporal.intervals)
+
+    #
+    # ------------------------------------------------------------
+    # TEST 1
+    # Collection only
+    # ------------------------------------------------------------
+    #
+
+    search = catalog.search(
+        collections=[COLLECTION_NAME],
+        max_items=5,
+    )
+
+    print_search_results(
+        "TEST 1 - COLLECTION ONLY",
+        search,
+    )
+
+    #
+    # ------------------------------------------------------------
+    # TEST 2
+    # Datetime only
+    # ------------------------------------------------------------
+    #
+
+    search = catalog.search(
+        collections=[COLLECTION_NAME],
+        datetime=f"{START_DATE}/{END_DATE}",
+        max_items=5,
+    )
+
+    print_search_results(
+        "TEST 2 - DATETIME",
+        search,
+    )
+
+    #
+    # ------------------------------------------------------------
+    # TEST 3
+    # Glacier bbox
+    # ------------------------------------------------------------
+    #
+
+    search = catalog.search(
+        collections=[COLLECTION_NAME],
+        bbox=bbox,
+        max_items=5,
+    )
+
+    print_search_results(
+        "TEST 3 - GLACIER BBOX",
+        search,
+    )
+
+    #
+    # ------------------------------------------------------------
+    # TEST 4
+    # Glacier bbox + datetime
+    # ------------------------------------------------------------
+    #
 
     search = catalog.search(
         collections=[COLLECTION_NAME],
         bbox=bbox,
         datetime=f"{START_DATE}/{END_DATE}",
-        max_items=MAX_ITEMS,
+        max_items=5,
     )
 
-    granules: list[GranuleInfo] = []
+    print_search_results(
+        "TEST 4 - GLACIER BBOX + DATETIME",
+        search,
+    )
 
-    for item in search.items():
+    #
+    # ------------------------------------------------------------
+    # TEST 5
+    # Polygon intersects
+    # ------------------------------------------------------------
+    #
 
-        # Find the NetCDF asset
-        asset = item.assets.get("data")
+    search = catalog.search(
+        collections=[COLLECTION_NAME],
+        intersects=glacier.geometry.iloc[0].__geo_interface__,
+        max_items=5,
+    )
 
-        if asset is None:
-            continue
+    print_search_results(
+        "TEST 5 - POLYGON INTERSECTS",
+        search,
+    )
 
-        granules.append(
-            GranuleInfo(
-                id=item.id,
-                url=asset.href,
-                bbox=tuple(item.bbox),
+    #
+    # ------------------------------------------------------------
+    # TEST 6
+    # Point intersects
+    # ------------------------------------------------------------
+    #
 
-                datetime=item.properties.get("datetime"),
-                start_datetime=item.properties.get("start_datetime"),
-                end_datetime=item.properties.get("end_datetime"),
+    point = {
+        "type": "Point",
+        "coordinates": [centroid[0], centroid[1]],
+    }
 
-                platform=item.properties.get("platform"),
+    search = catalog.search(
+        collections=[COLLECTION_NAME],
+        intersects=point,
+        max_items=5,
+    )
 
-                projection=item.properties.get("proj:code"),
+    print_search_results(
+        "TEST 6 - POINT INTERSECTS",
+        search,
+    )
 
-                percent_valid_pixels=item.properties.get("percent_valid_pixels"),
+    #
+    # ------------------------------------------------------------
+    # TEST 7
+    # Large Karakoram bbox
+    # ------------------------------------------------------------
+    #
 
-                version=item.properties.get("version"),
+    karakoram_bbox = [
+        70.0,
+        34.0,
+        78.0,
+        39.0,
+    ]
 
-                scene_1_id=item.properties.get("scene_1_id"),
-                scene_2_id=item.properties.get("scene_2_id"),
-            )
-        )
+    search = catalog.search(
+        collections=[COLLECTION_NAME],
+        bbox=karakoram_bbox,
+        max_items=5,
+    )
 
-    return granules
+    print_search_results(
+        "TEST 7 - KARAKORAM BBOX",
+        search,
+    )
 
 
 def main():
 
-    granules = search_granules()
+    search_granules()
 
-    print(f"\nFound {len(granules)} granules.\n")
-    if not granules:
-        raise RuntimeError("No ITS_LIVE granules found.")
-
-    for granule in granules[:5]:
-
-        for granule in granules[:5]:
-
-            print(f"ID        : {granule.id}")
-            print(f"Platform  : {granule.platform}")
-            print(f"Datetime  : {granule.datetime}")
-            print(f"Quality   : {granule.percent_valid_pixels}%")
-            print(f"File      : {granule.filename}")
-            print()
-            print()
+    print("\nDebugging complete.")
 
 
 if __name__ == "__main__":

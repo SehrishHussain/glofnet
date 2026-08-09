@@ -1,5 +1,5 @@
 """
-Clip reduced ITS_LIVE velocity datasets to the glacier geometry.
+Clip reduced ITS_LIVE datasets to the configured glacier geometry.
 
 Workflow
 --------
@@ -14,11 +14,6 @@ Workflow
 
 from pathlib import Path
 
-from glofnet.common.paths import (
-    ITSLIVE_PROCESSED_DIRECTORY,
-    ITSLIVE_CLIPPED_DIRECTORY,
-)
-
 import rioxarray  # noqa: F401
 import xarray as xr
 
@@ -27,23 +22,21 @@ from glofnet.common.geospatial import (
     get_dataset_crs,
     reproject_geometry,
 )
+from glofnet.common.paths import (
+    ITSLIVE_CLIPPED_DIRECTORY,
+    ITSLIVE_PROCESSED_DIRECTORY,
+)
 from glofnet.itslive.config import GLACIER_ID
 
 
-
-
-
-
-
 def clip_granule(path: Path) -> Path:
-    
     """
-    Clip one reduced ITS_LIVE dataset to the glacier polygon.
+    Clip a reduced ITS_LIVE dataset to the configured glacier.
 
     Parameters
     ----------
     path : Path
-        Path to the reduced NetCDF file.
+        Path to the reduced ITS_LIVE NetCDF file.
 
     Returns
     -------
@@ -51,57 +44,53 @@ def clip_granule(path: Path) -> Path:
         Path to the clipped NetCDF file.
     """
 
-    ds = xr.open_dataset(path)
-    #ds = xr.open_dataset(path)
+    with xr.open_dataset(path) as ds:
 
-    
-    #print("Variables:", list(ds.data_vars))
+        # --------------------------------------------------------------
+        # Attach CRS.
+        # --------------------------------------------------------------
 
-    # ------------------------------------------------------------------
-    # Read CRS from the dataset mapping variable.
-    # ------------------------------------------------------------------
+        crs = get_dataset_crs(ds)
 
-    crs = get_dataset_crs(ds)
+        ds = ds.rio.write_crs(crs)
 
-    ds = ds.rio.write_crs(crs)
+        # --------------------------------------------------------------
+        # Load glacier geometry.
+        # --------------------------------------------------------------
 
-    #print("Dataset CRS:", ds.rio.crs)
-    
+        glacier = load_glacier(GLACIER_ID)
 
-    # ------------------------------------------------------------------
-    # Load glacier geometry.
-    # ------------------------------------------------------------------
+        glacier = reproject_geometry(
+            glacier,
+            crs,
+        )
 
-    glacier = load_glacier(GLACIER_ID)
+        # --------------------------------------------------------------
+        # Clip dataset.
+        # --------------------------------------------------------------
 
-    glacier = reproject_geometry(glacier, crs)
-    # print("Glacier CRS:", glacier.crs)
+        clipped = ds.rio.clip(
+            glacier.geometry.values,
+            glacier.crs,
+            drop=True,
+        )
 
-    # ------------------------------------------------------------------
-    # Clip.
-    # ------------------------------------------------------------------
+        # --------------------------------------------------------------
+        # Save.
+        # --------------------------------------------------------------
 
-    clipped = ds.rio.clip(
-        glacier.geometry.values,
-        glacier.crs,
-        drop=True,
-    )
+        ITSLIVE_CLIPPED_DIRECTORY.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
-    # ------------------------------------------------------------------
-    # Save.
-    # ------------------------------------------------------------------
+        output_path = (
+            ITSLIVE_CLIPPED_DIRECTORY / path.name
+        )
 
-    ITSLIVE_CLIPPED_DIRECTORY.mkdir(
-    parents=True,
-    exist_ok=True,
-)
+        clipped.to_netcdf(output_path)
 
-    output_path = ITSLIVE_CLIPPED_DIRECTORY / path.name
-
-    clipped.to_netcdf(output_path)
-
-    clipped.close()
-    ds.close()
+        clipped.close()
 
     return output_path
 
@@ -115,9 +104,10 @@ def clip_all() -> list[Path]:
     list[Path]
         Paths to the clipped datasets.
     """
+
     datasets = sorted(
         ITSLIVE_PROCESSED_DIRECTORY.glob("*.nc")
-)
+    )
 
     if not datasets:
         raise FileNotFoundError(

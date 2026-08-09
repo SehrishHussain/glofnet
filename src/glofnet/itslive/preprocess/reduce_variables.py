@@ -1,83 +1,98 @@
-
+"""
+Reduce ITS_LIVE datasets to the variables required by CryoFusion.
+"""
 
 from pathlib import Path
 
 import xarray as xr
 
 from glofnet.common.paths import (
-    RAW_DIRECTORY,
-    PROCESSED_DIRECTORY,
+    ITSLIVE_PROCESSED_DIRECTORY,
+    ITSLIVE_RAW_DIRECTORY,
 )
 from glofnet.itslive.config import ITSLIVE_VARIABLES
 
 
-RAW_DIRECTORY = RAW_DIRECTORY / "itslive"
-PROCESSED_DIRECTORY = PROCESSED_DIRECTORY / "itslive"
-
-
 def preprocess_granule(path: Path) -> Path:
     """
-    Preprocess one ITS_LIVE granule.
+    Reduce a single ITS_LIVE granule to the required variables.
 
     Parameters
     ----------
     path : Path
-        Path to the downloaded NetCDF file.
+        Path to the raw ITS_LIVE NetCDF file.
 
     Returns
     -------
     Path
-        Path to the processed NetCDF.
+        Path to the reduced NetCDF file.
     """
 
-    ds = xr.open_dataset(path)
+    with xr.open_dataset(path) as ds:
 
+        # --------------------------------------------------------------
+        # Verify required variables exist.
+        # --------------------------------------------------------------
+        missing = [
+            variable
+            for variable in ITSLIVE_VARIABLES
+            if variable not in ds.data_vars
+        ]
 
-    # Verify that all required variables exist.
-    missing = [
-        variable
-        for variable in ITSLIVE_VARIABLES
-        if variable not in ds.data_vars
-    ]
+        if missing:
+            raise KeyError(
+                "Missing ITS_LIVE variables: "
+                f"{', '.join(missing)}"
+            )
 
-    if missing:
-        ds.close()
-        raise KeyError(
-            f"Missing ITS_LIVE variables: {', '.join(missing)}"
+        # --------------------------------------------------------------
+        # Keep only required variables.
+        # --------------------------------------------------------------
+        reduced = ds[ITSLIVE_VARIABLES]
+
+        # --------------------------------------------------------------
+        # Save.
+        # --------------------------------------------------------------
+        ITSLIVE_PROCESSED_DIRECTORY.mkdir(
+            parents=True,
+            exist_ok=True,
         )
 
-    # Keep only the required variables.
-    processed = ds[ITSLIVE_VARIABLES]
+        output_path = (
+            ITSLIVE_PROCESSED_DIRECTORY / path.name
+        )
 
-    # Create output directory if needed.
-    PROCESSED_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        reduced.to_netcdf(output_path)
 
-    output_path = PROCESSED_DIRECTORY / path.name
-
-    # Save the reduced dataset.
-    processed.to_netcdf(output_path)
-
-    processed.close()
-    ds.close()
+        reduced.close()
 
     return output_path
+
+
 def preprocess_all() -> list[Path]:
     """
-    Reduce variables for all downloaded ITS_LIVE granules.
+    Reduce every raw ITS_LIVE dataset.
+
+    Returns
+    -------
+    list[Path]
+        Paths to the reduced datasets.
     """
 
-    granules = sorted(RAW_DIRECTORY.glob("*.nc"))
+    datasets = sorted(
+        ITSLIVE_RAW_DIRECTORY.glob("*.nc")
+    )
 
-    if not granules:
+    if not datasets:
         raise FileNotFoundError(
-            "No downloaded ITS_LIVE granules found."
+            "No ITS_LIVE datasets found."
         )
 
     processed_files: list[Path] = []
 
-    for granule in granules:
+    for dataset in datasets:
         processed_files.append(
-            preprocess_granule(granule)
+            preprocess_granule(dataset)
         )
 
     return processed_files
@@ -87,10 +102,10 @@ def main():
 
     processed = preprocess_all()
 
-    print("\nProcessed files:\n")
+    print("\nReduced datasets:\n")
 
-    for file in processed:
-        print(file)
+    for dataset in processed:
+        print(dataset)
 
 
 if __name__ == "__main__":

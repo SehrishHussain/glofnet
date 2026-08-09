@@ -22,11 +22,12 @@ OUTPUT_DIRECTORY = "data/raw/itslive"
 
 COLLECTION_NAME = "itslive-granules"
 
-START_DATE = "2021-01-01"
-END_DATE = "2024-12-31"
+START_DATE = "2024-01-01"
+END_DATE = "2026-12-31"
 
 
-MAX_ITEMS = 1
+MAX_ITEMS = 20
+
 
 ITSLIVE_VARIABLES = [
     "mapping",
