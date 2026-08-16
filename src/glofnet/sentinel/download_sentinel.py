@@ -162,7 +162,8 @@ def main():
 
     glacier_id = glacier.iloc[0]["rgi_id"]
 
-    output_dir = Path("data/raw/sentinel")
+    PROJECT_ROOT = Path(__file__).resolve().parents[3]
+    output_dir = PROJECT_ROOT / "data" / "raw" / "sentinel"
     
 
     #print(f"GeoTIFF saved to: {output_file}")
@@ -188,16 +189,28 @@ def main():
     },
     "Sentinel RGB",
 )
-    
+    print("\n===== GLACIER DEBUG =====")
+
+    print("GLACIER_ID:", GLACIER_ID)
+    print("RGI ID:", glacier.iloc[0]["rgi_id"])
+    print("CRS:", glacier.crs)
+
+    print("\nBounds:")
+    print(glacier.total_bounds)
+
+    print("\nGeometry:")
+    print(glacier.geometry.iloc[0])
+
+    print("=========================\n")
 
     map_view.addLayer(
         ee_polygon,
         {"color": "red"},
-        "Passu Glacier",
+        "Shishper Glacier",
     )
-    map_view.to_html("passu_map.html")
+    map_view.to_html("shishper_map.html")
 
-    webbrowser.open("passu_map.html")
+    webbrowser.open("shishper_map.html")
 
     downloaded_files = download_collection(
     collection,
